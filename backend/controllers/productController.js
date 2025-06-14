@@ -12,12 +12,23 @@ export const createProduct = async (req, res) => {
     // Handle uploaded images
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => `/uploads/${file.filename}`);
+    } else {
+      return res.status(400).json({ message: 'Se requiere al menos una imagen' });
+    }
+
+    // Parse tags if they exist
+    if (req.body.tags) {
+      try {
+        productData.tags = JSON.parse(req.body.tags);
+      } catch (error) {
+        productData.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      }
     }
 
     const product = await Product.create(productData);
     
     const populatedProduct = await Product.findById(product._id)
-      .populate('owner', 'name location');
+      .populate('owner', 'name location rating totalRatings');
     
     res.status(201).json(populatedProduct);
   } catch (error) {
@@ -28,7 +39,7 @@ export const createProduct = async (req, res) => {
 
 export const getProducts = async (req, res) => {
   try {
-    const { category, search, status = 'disponible' } = req.query;
+    const { category, search, status = 'disponible', featured } = req.query;
     let query = { status };
 
     if (category && category !== 'todas' && category !== 'Todas') {
@@ -42,9 +53,19 @@ export const getProducts = async (req, res) => {
       ];
     }
 
-    const products = await Product.find(query)
-      .populate('owner', 'name location rating totalRatings')
-      .sort('-createdAt');
+    let products;
+    
+    if (featured === 'true') {
+      // Para productos destacados, obtener los más recientes con mejor rating del owner
+      products = await Product.find(query)
+        .populate('owner', 'name location rating totalRatings')
+        .sort({ 'owner.rating': -1, createdAt: -1 })
+        .limit(3);
+    } else {
+      products = await Product.find(query)
+        .populate('owner', 'name location rating totalRatings')
+        .sort('-createdAt');
+    }
 
     res.json(products);
   } catch (error) {
@@ -74,10 +95,32 @@ export const updateProduct = async (req, res) => {
       
       // If there are existing images in the request body, combine them
       if (updateData.existingImages) {
-        updateData.images = [...updateData.existingImages, ...newImages];
+        try {
+          const existingImages = JSON.parse(updateData.existingImages);
+          updateData.images = [...existingImages, ...newImages];
+        } catch (error) {
+          updateData.images = newImages;
+        }
         delete updateData.existingImages;
       } else {
         updateData.images = newImages;
+      }
+    } else if (updateData.existingImages) {
+      // Only existing images, no new ones
+      try {
+        updateData.images = JSON.parse(updateData.existingImages);
+      } catch (error) {
+        // Keep existing images as is
+      }
+      delete updateData.existingImages;
+    }
+
+    // Parse tags if they exist
+    if (updateData.tags) {
+      try {
+        updateData.tags = JSON.parse(updateData.tags);
+      } catch (error) {
+        updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       }
     }
 

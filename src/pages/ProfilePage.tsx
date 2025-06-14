@@ -9,6 +9,7 @@ import RatingModal from '../components/RatingModal';
 import * as productService from '../services/products';
 import * as tradeService from '../services/trades';
 import * as ratingService from '../services/ratings';
+import * as authService from '../services/auth';
 
 interface Product {
   _id: string;
@@ -79,12 +80,41 @@ const ProfilePage = () => {
     ratedUserName: string;
   } | null>(null);
 
+  // Settings form state
+  const [settingsForm, setSettingsForm] = useState({
+    name: '',
+    email: '',
+    location: '',
+    bio: '',
+    phone: '',
+    currentPassword: '',
+    newPassword: ''
+  });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
     }
   }, [isAuthenticated, navigate]);
+
+  // Initialize settings form with user data
+  useEffect(() => {
+    if (user) {
+      setSettingsForm({
+        name: user.name || '',
+        email: user.email || '',
+        location: user.location || '',
+        bio: user.bio || '',
+        phone: user.phone || '',
+        currentPassword: '',
+        newPassword: ''
+      });
+    }
+  }, [user]);
 
   const fetchUserProducts = async () => {
     try {
@@ -207,6 +237,62 @@ const ProfilePage = () => {
     fetchUserRatings();
   };
 
+  const handleSettingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsError('');
+    setSettingsSuccess('');
+    setSettingsLoading(true);
+
+    try {
+      const updateData: any = {
+        name: settingsForm.name,
+        email: settingsForm.email,
+        location: settingsForm.location,
+        bio: settingsForm.bio,
+        phone: settingsForm.phone
+      };
+
+      // Only include password fields if both are provided
+      if (settingsForm.currentPassword && settingsForm.newPassword) {
+        if (settingsForm.newPassword.length < 6) {
+          setSettingsError('La nueva contraseña debe tener al menos 6 caracteres');
+          return;
+        }
+        updateData.currentPassword = settingsForm.currentPassword;
+        updateData.newPassword = settingsForm.newPassword;
+      }
+
+      await authService.updateProfile(updateData);
+      setSettingsSuccess('Perfil actualizado correctamente');
+      
+      // Clear password fields
+      setSettingsForm(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: ''
+      }));
+
+      // Update user context if needed
+      const updatedUser = {
+        ...user!,
+        name: settingsForm.name,
+        email: settingsForm.email,
+        location: settingsForm.location,
+        bio: settingsForm.bio,
+        phone: settingsForm.phone
+      };
+      
+      // Update localStorage
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      setSettingsError(error.response?.data?.message || 'Error al actualizar el perfil');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const getConditionText = (condition: string) => {
     const conditions = {
       'nuevo': 'Nuevo',
@@ -260,7 +346,7 @@ const ProfilePage = () => {
 
     if (hasHalfStar) {
       stars.push(
-        <Star key="half\" className="h-4 w-4 fill-yellow-400 text-yellow-400 opacity-50" />
+        <Star key="half" className="h-4 w-4 fill-yellow-400 text-yellow-400 opacity-50" />
       );
     }
 
@@ -291,6 +377,9 @@ const ProfilePage = () => {
               <div>
                 <h1 className="text-2xl font-bold">{user.name}</h1>
                 <p className="text-green-100">{user.email}</p>
+                {user.location && (
+                  <p className="text-green-200 text-sm">{user.location}</p>
+                )}
                 {user.rating && user.rating > 0 && (
                   <div className="flex items-center mt-1">
                     <div className="flex mr-2">
@@ -397,7 +486,9 @@ const ProfilePage = () => {
                   {userProducts.map((product) => (
                     <div key={product._id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition">
                       <img
-                        src={product.images[0] || 'https://images.pexels.com/photos/4503273/pexels-photo-4503273.jpeg'}
+                        src={product.images[0]?.startsWith('http') 
+                          ? product.images[0] 
+                          : `http://localhost:5000${product.images[0]}`}
                         alt={product.title}
                         className="w-full h-48 object-cover"
                         onError={(e) => {
@@ -570,7 +661,9 @@ const ProfilePage = () => {
                             <h4 className="font-medium text-gray-900 mb-2">Mi producto</h4>
                             <div className="flex space-x-3">
                               <img
-                                src={myProduct.images[0]}
+                                src={myProduct.images[0]?.startsWith('http') 
+                                  ? myProduct.images[0] 
+                                  : `http://localhost:5000${myProduct.images[0]}`}
                                 alt={myProduct.title}
                                 className="w-16 h-16 object-cover rounded"
                               />
@@ -592,7 +685,9 @@ const ProfilePage = () => {
                             </h4>
                             <div className="flex space-x-3">
                               <img
-                                src={otherProduct.images[0]}
+                                src={otherProduct.images[0]?.startsWith('http') 
+                                  ? otherProduct.images[0] 
+                                  : `http://localhost:5000${otherProduct.images[0]}`}
                                 alt={otherProduct.title}
                                 className="w-16 h-16 object-cover rounded"
                               />
@@ -672,7 +767,19 @@ const ProfilePage = () => {
             <div>
               <h2 className="text-xl font-semibold text-gray-800 mb-6">Configuración de Perfil</h2>
               
-              <form className="space-y-6">
+              {settingsSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-700">{settingsSuccess}</p>
+                </div>
+              )}
+
+              {settingsError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700">{settingsError}</p>
+                </div>
+              )}
+              
+              <form onSubmit={handleSettingsSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -682,7 +789,8 @@ const ProfilePage = () => {
                       type="text"
                       id="name"
                       name="name"
-                      defaultValue={user.name}
+                      value={settingsForm.name}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                     />
                   </div>
@@ -695,7 +803,8 @@ const ProfilePage = () => {
                       type="email"
                       id="email"
                       name="email"
-                      defaultValue={user.email}
+                      value={settingsForm.email}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                     />
                   </div>
@@ -708,6 +817,8 @@ const ProfilePage = () => {
                       type="tel"
                       id="phone"
                       name="phone"
+                      value={settingsForm.phone}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, phone: e.target.value })}
                       placeholder="+51 XXX XXX XXX"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                     />
@@ -721,6 +832,8 @@ const ProfilePage = () => {
                       type="text"
                       id="location"
                       name="location"
+                      value={settingsForm.location}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, location: e.target.value })}
                       placeholder="Ciudad, Perú"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                     />
@@ -735,6 +848,8 @@ const ProfilePage = () => {
                     id="bio"
                     name="bio"
                     rows={4}
+                    value={settingsForm.bio}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, bio: e.target.value })}
                     placeholder="Cuéntanos sobre ti..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                   ></textarea>
@@ -751,6 +866,8 @@ const ProfilePage = () => {
                         type="password"
                         id="currentPassword"
                         name="currentPassword"
+                        value={settingsForm.currentPassword}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, currentPassword: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                       />
                     </div>
@@ -763,18 +880,31 @@ const ProfilePage = () => {
                         type="password"
                         id="newPassword"
                         name="newPassword"
+                        value={settingsForm.newPassword}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, newPassword: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                       />
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Deja estos campos vacíos si no quieres cambiar tu contraseña
+                  </p>
                 </div>
                 
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
+                    disabled={settingsLoading}
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center"
                   >
-                    Guardar Cambios
+                    {settingsLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar Cambios'
+                    )}
                   </button>
                 </div>
               </form>

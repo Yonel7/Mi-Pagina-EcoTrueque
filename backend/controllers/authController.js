@@ -28,6 +28,8 @@ export const register = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      location: user.location,
+      bio: user.bio,
       token
     });
   } catch (error) {
@@ -50,9 +52,54 @@ export const login = async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
+      location: user.location,
+      bio: user.bio,
+      phone: user.phone,
       token
     });
   } catch (error) {
     res.status(500).json({ message: 'Error al iniciar sesión', error: error.message });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email, location, bio, phone, currentPassword, newPassword } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Update basic info
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (location !== undefined) user.location = location;
+    if (bio !== undefined) user.bio = bio;
+    if (phone !== undefined) user.phone = phone;
+
+    // Handle password change
+    if (currentPassword && newPassword) {
+      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({ message: 'Contraseña actual incorrecta' });
+      }
+      user.password = newPassword;
+    }
+
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      location: user.location,
+      bio: user.bio,
+      phone: user.phone,
+      rating: user.rating,
+      totalRatings: user.totalRatings
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar perfil', error: error.message });
   }
 };

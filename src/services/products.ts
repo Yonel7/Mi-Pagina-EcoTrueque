@@ -21,7 +21,11 @@ export interface Product {
   updatedAt?: string;
 }
 
-export const getProducts = async (params?: { category?: string; search?: string }) => {
+export const getProducts = async (params?: { 
+  category?: string; 
+  search?: string; 
+  featured?: string;
+}) => {
   const response = await api.get('/products', { params });
   return response.data;
 };

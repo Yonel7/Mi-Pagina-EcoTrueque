@@ -21,9 +21,13 @@ const userSchema = new mongoose.Schema({
   location: {
     type: String,
     trim: true,
-    default: 'Lima, Perú'
+    default: ''
   },
   bio: {
+    type: String,
+    default: ''
+  },
+  phone: {
     type: String,
     default: ''
   },

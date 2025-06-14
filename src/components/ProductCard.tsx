@@ -84,7 +84,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onTradeProposed }) =
 
     if (hasHalfStar) {
       stars.push(
-        <Star key="half\" className="h-3 w-3 fill-yellow-400 text-yellow-400 opacity-50" />
+        <Star key="half" className="h-3 w-3 fill-yellow-400 text-yellow-400 opacity-50" />
       );
     }
 
@@ -103,7 +103,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onTradeProposed }) =
       <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200">
         <div className="relative">
           <img
-            src={product.images[0] || 'https://images.pexels.com/photos/4503273/pexels-photo-4503273.jpeg'}
+            src={product.images[0]?.startsWith('http') 
+              ? product.images[0] 
+              : `http://localhost:5000${product.images[0]}`}
             alt={product.title}
             className="w-full h-48 object-cover"
             onError={(e) => {

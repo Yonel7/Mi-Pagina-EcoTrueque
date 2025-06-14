@@ -1,10 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Leaf, Recycle, Users, ThumbsUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import * as productService from '../services/products';
+
+interface Product {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  images: string[];
+  condition: string;
+  owner: {
+    _id: string;
+    name: string;
+    location?: string;
+  };
+  status: string;
+  createdAt: string;
+}
 
 const HomePage = () => {
   const { isAuthenticated } = useAuth();
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        const products = await productService.getProducts({ featured: 'true' });
+        setFeaturedProducts(products.slice(0, 3)); // Máximo 3 productos
+      } catch (error) {
+        console.error('Error fetching featured products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, []);
+
+  const getConditionText = (condition: string) => {
+    const conditions = {
+      'nuevo': 'Nuevo',
+      'como_nuevo': 'Como nuevo',
+      'buen_estado': 'Buen estado',
+      'usado': 'Usado'
+    };
+    return conditions[condition as keyof typeof conditions] || condition;
+  };
 
   return (
     <div className="flex flex-col">
@@ -111,105 +155,69 @@ const HomePage = () => {
       </section>
 
       {/* Featured Products */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Productos Destacados</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Descubre algunos de los productos disponibles para intercambio
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Product Card 1 */}
-            <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition">
-              <img
-                src="https://images.pexels.com/photos/4503273/pexels-photo-4503273.jpeg"
-                alt="Macetas recicladas"
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Macetas Recicladas</h3>
-                <p className="text-gray-600 mb-4">
-                  Macetas hechas con botellas de plástico recicladas, perfectas para plantas pequeñas.
-                </p>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                    Decoración
-                  </span>
-                  <Link
-                    to="/products"
-                    className="text-green-600 hover:text-green-800 font-medium"
-                  >
-                    Ver detalles
-                  </Link>
-                </div>
-              </div>
+      {featuredProducts.length > 0 && (
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">Productos Destacados</h2>
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+                Descubre algunos de los productos más populares disponibles para intercambio
+              </p>
             </div>
 
-            {/* Product Card 2 */}
-            <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition">
-              <img
-                src="https://images-cdn.ubuy.com.sa/634007c461c7c1636232a372-sunwood-life-bokashi-compost-kit.jpg"
-                alt="Compostaje casero"
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Kit de Compostaje</h3>
-                <p className="text-gray-600 mb-4">
-                  Kit completo para iniciar tu propio compostaje en casa, incluye guía de uso.
-                </p>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                    Jardín
-                  </span>
-                  <Link
-                    to="/products"
-                    className="text-green-600 hover:text-green-800 font-medium"
-                  >
-                    Ver detalles
-                  </Link>
-                </div>
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+                <span className="ml-3 text-gray-600">Cargando productos destacados...</span>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {featuredProducts.map((product) => (
+                  <div key={product._id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition">
+                    <img
+                      src={product.images[0]?.startsWith('http') 
+                        ? product.images[0] 
+                        : `http://localhost:5000${product.images[0]}`}
+                      alt={product.title}
+                      className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://images.pexels.com/photos/4503273/pexels-photo-4503273.jpeg';
+                      }}
+                    />
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold mb-2">{product.title}</h3>
+                      <p className="text-gray-600 mb-4 line-clamp-2">
+                        {product.description}
+                      </p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                          {product.category}
+                        </span>
+                        <Link
+                          to={`/products?search=${encodeURIComponent(product.title)}`}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Ver detalles
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {/* Product Card 3 */}
-            <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition">
-              <img
-                src="https://images.pexels.com/photos/6069552/pexels-photo-6069552.jpeg"
-                alt="Bolsas ecológicas"
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Bolsas Ecológicas</h3>
-                <p className="text-gray-600 mb-4">
-                  Set de bolsas reutilizables para compras, hechas con tela reciclada.
-                </p>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                    Hogar
-                  </span>
-                  <Link
-                    to="/products"
-                    className="text-green-600 hover:text-green-800 font-medium"
-                  >
-                    Ver detalles
-                  </Link>
-                </div>
-              </div>
+            <div className="text-center mt-10">
+              <Link
+                to="/products"
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+              >
+                Ver todos los productos
+              </Link>
             </div>
           </div>
-
-          <div className="text-center mt-10">
-            <Link
-              to="/products"
-              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
-            >
-              Ver todos los productos
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Testimonials */}
       <section className="py-16 bg-white">

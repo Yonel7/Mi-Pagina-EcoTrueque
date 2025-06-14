@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, Upload } from 'lucide-react';
 import * as productService from '../services/products';
 
 interface AddProductModalProps {
@@ -30,8 +30,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
     tags: ''
   });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imageUrls, setImageUrls] = useState<string[]>(['']);
-  const [useFileUpload, setUseFileUpload] = useState(true);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,13 +43,8 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
       return;
     }
 
-    if (useFileUpload && imageFiles.length === 0) {
+    if (imageFiles.length === 0) {
       setError('Por favor selecciona al menos una imagen');
-      return;
-    }
-
-    if (!useFileUpload && !imageUrls.some(url => url.trim())) {
-      setError('Por favor proporciona al menos una URL de imagen');
       return;
     }
 
@@ -70,16 +64,10 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
         productData.append('tags', JSON.stringify(tagsArray));
       }
 
-      if (useFileUpload) {
-        // Add image files
-        imageFiles.forEach(file => {
-          productData.append('images', file);
-        });
-      } else {
-        // Add image URLs
-        const validUrls = imageUrls.filter(url => url.trim());
-        productData.append('imageUrls', JSON.stringify(validUrls));
-      }
+      // Add image files
+      imageFiles.forEach(file => {
+        productData.append('images', file);
+      });
 
       await productService.createProduct(productData);
       onProductAdded();
@@ -103,8 +91,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
       tags: ''
     });
     setImageFiles([]);
-    setImageUrls(['']);
-    setUseFileUpload(true);
+    setImagePreviews([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,25 +100,29 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
       setError('Máximo 5 imágenes permitidas');
       return;
     }
+
     setImageFiles(files);
     setError('');
+
+    // Create previews
+    const previews: string[] = [];
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previews.push(e.target?.result as string);
+        if (previews.length === files.length) {
+          setImagePreviews([...previews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
-  const handleImageUrlChange = (index: number, value: string) => {
-    const newUrls = [...imageUrls];
-    newUrls[index] = value;
-    setImageUrls(newUrls);
-  };
-
-  const addImageUrlField = () => {
-    if (imageUrls.length < 5) {
-      setImageUrls([...imageUrls, '']);
-    }
-  };
-
-  const removeImageUrlField = (index: number) => {
-    const newUrls = imageUrls.filter((_, i) => i !== index);
-    setImageUrls(newUrls.length > 0 ? newUrls : ['']);
+  const removeImage = (index: number) => {
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
   };
 
   if (!isOpen) return null;
@@ -265,88 +256,37 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose, onPr
                 Imágenes del Producto *
               </label>
               
-              <div className="flex space-x-4 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setUseFileUpload(true)}
-                  className={`flex items-center px-4 py-2 rounded-lg border-2 transition-colors ${
-                    useFileUpload 
-                      ? 'border-green-500 bg-green-50 text-green-700' 
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Subir desde dispositivo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUseFileUpload(false)}
-                  className={`flex items-center px-4 py-2 rounded-lg border-2 transition-colors ${
-                    !useFileUpload 
-                      ? 'border-green-500 bg-green-50 text-green-700' 
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  <ImageIcon className="h-4 w-4 mr-2" />
-                  URLs de imágenes
-                </button>
+              <div className="mb-4">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Selecciona hasta 5 imágenes (JPG, PNG, GIF). Máximo 5MB por imagen.
+                </p>
               </div>
 
-              {useFileUpload ? (
-                <div>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Selecciona hasta 5 imágenes (JPG, PNG, GIF). Máximo 5MB por imagen.
-                  </p>
-                  {imageFiles.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-sm text-green-600">
-                        {imageFiles.length} imagen(es) seleccionada(s)
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {imageUrls.map((url, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="url"
-                        value={url}
-                        onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        placeholder="https://ejemplo.com/imagen.jpg"
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border"
                       />
-                      {imageUrls.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeImageUrlField(index)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   ))}
-                  {imageUrls.length < 5 && (
-                    <button
-                      type="button"
-                      onClick={addImageUrlField}
-                      className="flex items-center text-green-600 hover:text-green-800 text-sm"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Agregar otra imagen
-                    </button>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Puedes usar URLs de imágenes de Pexels, Unsplash, o cualquier URL pública
-                  </p>
                 </div>
               )}
             </div>

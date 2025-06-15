@@ -5,6 +5,12 @@ interface User {
   _id: string;
   name: string;
   email: string;
+  location?: string;
+  bio?: string;
+  phone?: string;
+  rating?: number;
+  totalRatings?: number;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -13,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,12 +50,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.setItem('user', JSON.stringify({
         _id: response._id,
         name: response.name,
-        email: response.email
+        email: response.email,
+        location: response.location,
+        bio: response.bio,
+        phone: response.phone,
+        rating: response.rating,
+        totalRatings: response.totalRatings,
+        avatar: response.avatar
       }));
       setUser({
         _id: response._id,
         name: response.name,
-        email: response.email
+        email: response.email,
+        location: response.location,
+        bio: response.bio,
+        phone: response.phone,
+        rating: response.rating,
+        totalRatings: response.totalRatings,
+        avatar: response.avatar
       });
       return true;
     } catch (error) {
@@ -64,12 +83,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.setItem('user', JSON.stringify({
         _id: response._id,
         name: response.name,
-        email: response.email
+        email: response.email,
+        location: response.location,
+        bio: response.bio,
+        phone: response.phone,
+        rating: response.rating,
+        totalRatings: response.totalRatings,
+        avatar: response.avatar
       }));
       setUser({
         _id: response._id,
         name: response.name,
-        email: response.email
+        email: response.email,
+        location: response.location,
+        bio: response.bio,
+        phone: response.phone,
+        rating: response.rating,
+        totalRatings: response.totalRatings,
+        avatar: response.avatar
       });
       return true;
     } catch (error) {
@@ -84,12 +115,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
     login,
     register,
-    logout
+    logout,
+    updateUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

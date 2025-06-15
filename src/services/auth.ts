@@ -18,6 +18,7 @@ export interface AuthResponse {
   phone?: string;
   rating?: number;
   totalRatings?: number;
+  avatar?: string;
   token: string;
 }
 
@@ -31,6 +32,14 @@ export interface UpdateProfileData {
   newPassword?: string;
 }
 
+export interface SocialAuthData {
+  googleToken?: string;
+  facebookToken?: string;
+  name: string;
+  email: string;
+  picture?: string;
+}
+
 export const login = async (data: LoginData): Promise<AuthResponse> => {
   const response = await api.post('/auth/login', data);
   return response.data;
@@ -38,6 +47,26 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
 
 export const register = async (data: RegisterData): Promise<AuthResponse> => {
   const response = await api.post('/auth/register', data);
+  return response.data;
+};
+
+export const googleAuth = async (data: SocialAuthData): Promise<AuthResponse> => {
+  const response = await api.post('/auth/google', data);
+  return response.data;
+};
+
+export const facebookAuth = async (data: SocialAuthData): Promise<AuthResponse> => {
+  const response = await api.post('/auth/facebook', data);
+  return response.data;
+};
+
+export const forgotPassword = async (email: string) => {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+export const resetPassword = async (token: string, newPassword: string): Promise<AuthResponse> => {
+  const response = await api.post('/auth/reset-password', { token, newPassword });
   return response.data;
 };
 

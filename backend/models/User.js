@@ -49,6 +49,30 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Campos para autenticación social
+  googleId: {
+    type: String,
+    default: ''
+  },
+  facebookId: {
+    type: String,
+    default: ''
+  },
+  isGoogleUser: {
+    type: Boolean,
+    default: false
+  },
+  isFacebookUser: {
+    type: Boolean,
+    default: false
+  },
+  // Campos para recuperación de contraseña
+  resetPasswordToken: {
+    type: String
+  },
+  resetPasswordExpiry: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -57,7 +81,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
